@@ -1,0 +1,25 @@
+services:
+  # Database Oracle
+  db:
+    image: gvenzl/oracle-xe:latest
+    container_name: puskod-db
+    ports:
+      - "1521:1521"
+    environment:
+      - ORACLE_PASSWORD=PasswordPuskod123
+    volumes:
+      - oracle_data:/opt/oracle/oradata
+
+  # Aplikasi Next.js
+  app:
+    build: .
+    container_name: puskod-app
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+    environment:
+      - DATABASE_URL=oracle://system:PasswordPuskod123@db:1521/xe
+
+volumes:
+  oracle_data:
