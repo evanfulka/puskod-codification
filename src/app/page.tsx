@@ -20,7 +20,7 @@ export default async function HomePage() {
         <div className="hidden md:flex items-center gap-8 text-sm font-semibold">
           <Link href="/" className="text-[#800000]">Beranda</Link>
           <Link href="/dashboard/pemohon/baru" className="hover:text-[#800000]">Pendaftaran NSN</Link>
-          <Link href="/dashboard/pemohon" className="hover:text-[#800000]">Pantau Status</Link>
+          <Link href="/dashboard/pemohon" className="hover:text-[#800000]">Dashboard Pantau Status</Link>
           <Link href="/cek-nsn" className="hover:text-[#800000]">Cek NSN</Link>
         </div>
         <div className="flex items-center gap-6">
@@ -56,7 +56,7 @@ export default async function HomePage() {
                   type="submit" 
                   className="text-xs font-bold text-gray-500 hover:text-[#800000] border border-gray-300 px-3 py-1 rounded-md transition"
                 >
-                  Keluar
+                  Logout
                 </button>
               </form>
             </div>
