@@ -33,18 +33,23 @@ export async function registerAction(prevState: any,formData: FormData) {
   redirect('/login');
 }
 
-export async function loginAction(prevState: any,formData: FormData) {
+export async function loginAction(prevState: any, formData: FormData) {
   const email = formData.get('email') as string;
   const password = formData.get('password') as string;
 
   const conn = await getConnection();
+  let targetPath = ''; // Variabel untuk menentukan arah redirect
+
   try {
     const result: any = await conn.execute(
       `SELECT ID_USER, PASSWORD, ROLE, NAMA_LENGKAP_POC FROM USERS WHERE EMAIL = :1`,
       [email]
     );
 
-    if (result.rows.length === 0) return { success: false, message: "Akun tidak ditemukan." };
+    if (result.rows.length === 0) {
+      await conn.close();
+      return { success: false, message: "Akun tidak ditemukan." };
+    }
 
     const [id, hash, role, nama] = result.rows[0];
     const isMatch = await bcrypt.compare(password, hash);
@@ -59,15 +64,33 @@ export async function loginAction(prevState: any,formData: FormData) {
       cookieStore.set('session_token', token, { 
         httpOnly: true, 
         secure: process.env.NODE_ENV === 'production',
-        maxAge: 60 * 60 * 2 // 2 Jam
+        maxAge: 60 * 60 * 2, // 2 Jam
+        path: '/'
       });
       
-      return { success: true };
+      // Tentukan halaman tujuan berdasarkan Role
+      if (role === 'PEMOHON') {
+        targetPath = '/';
+      } else {
+        // Untuk STAF_PUSKOD, KATALOGER, PIMPINAN, ADMINISTRATOR
+        targetPath = '/admin';
+      }
+
+    } else {
+      await conn.close();
+      return { success: false, message: "Password salah." };
     }
-    return { success: false, message: "Password salah." };
+  } catch (err) {
+    console.error("Login Error:", err);
+    return { success: false, message: "Terjadi kesalahan pada server." };
   } finally {
+    // Pastikan koneksi ditutup sebelum redirect
     await conn.close();
-    redirect('/');
+  }
+
+  // Jalankan redirect di luar blok try-finally agar Next.js bisa memprosesnya dengan benar
+  if (targetPath) {
+    redirect(targetPath);
   }
 }
 
