@@ -19,9 +19,9 @@ export default async function HomePage() {
         </div>
         <div className="hidden md:flex items-center gap-8 text-sm font-semibold">
           <Link href="/" className="text-[#800000]">Beranda</Link>
-          <Link href="/dashboard/pemohon/baru" className="hover:text-[#800000]">Pendaftaran NSN</Link>
-          <Link href="/dashboard/pemohon" className="hover:text-[#800000]">Dashboard Pantau Status</Link>
-          <Link href="/cek-nsn" className="hover:text-[#800000]">Cek NSN</Link>
+          <Link href="/permohonan-nsn" className="hover:text-[#800000]">Permohonan NSN</Link>
+          <Link href="/pantau-status" className="hover:text-[#800000]">Pantau Status</Link>
+          <Link href="/cek-ncage" className="hover:text-[#800000]">Cek NCAGE</Link>
         </div>
         <div className="flex items-center gap-6">
           {!session ? (
@@ -54,9 +54,9 @@ export default async function HomePage() {
               <form action={logoutAction}>
                 <button 
                   type="submit" 
-                  className="text-xs font-bold text-gray-500 hover:text-[#800000] border border-gray-300 px-3 py-1 rounded-md transition"
+                  className="bg-[#800000] text-white px-6 py-2 rounded-full font-bold"
                 >
-                  Logout
+                  Keluar
                 </button>
               </form>
             </div>
@@ -72,7 +72,7 @@ export default async function HomePage() {
         <p className="text-gray-600 max-w-2xl mb-8 leading-relaxed">
           Daftarkan materiil pertahanan Anda untuk mendapatkan Nomor Sediaan Nasional (NSN/NATO Stock Number) secara resmi, cepat, dan transparan.
         </p>
-        <Link href="/pendaftaran" className="bg-[#800000] text-white px-8 py-3 rounded-md font-bold text-lg hover:bg-red-900 transition shadow-lg">
+        <Link href="/cek-ncage" className="bg-[#800000] text-white px-8 py-3 rounded-md font-bold text-lg hover:bg-red-900 transition shadow-lg">
           Daftarkan Materiil Anda Sekarang
         </Link>
         
@@ -101,7 +101,7 @@ export default async function HomePage() {
             <h4 className="font-bold mb-4">Tautan</h4>
             <ul className="text-gray-400 text-sm space-y-2">
               <li><Link href="/">Beranda</Link></li>
-              <li><Link href="/pendaftaran">Pendaftaran NSN</Link></li>
+              <li><Link href="/permohonan-nsn">Permohonan NSN</Link></li>
               <li><Link href="/pantau-status">Pantau Status</Link></li>
             </ul>
           </div>

@@ -32,7 +32,7 @@ export async function middleware(request: NextRequest) {
       const { payload } = await jwtVerify(token, SECRET_KEY);
       const role = payload.role as string;
       
-      const adminRoles = ['STAF_PUSKOD', 'KATALOGER', 'PIMPINAN', 'ADMINISTRATOR'];
+      const adminRoles = ['STAF_PUSKOD', 'KATALOGER', 'VALTAKOD', 'ADMINISTRATOR'];
       if (!adminRoles.includes(role)) {
         // Jika dia pemohon tapi mau masuk admin, kembalikan ke halaman utama
         return NextResponse.redirect(new URL('/', request.url));
