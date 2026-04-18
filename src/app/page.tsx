@@ -43,13 +43,6 @@ export default async function HomePage() {
                 </div>
               </button>
 
-              {/* Profil User */}
-              <Link href="/profile" className="flex items-center gap-3 group">
-                <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-[#800000]">
-                  <Image src="/images/default-avatar.png" alt="User" width={40} height={40} className="object-cover" />
-                </div>
-              </Link>
-
               {/* Form Logout menggunakan Server Action */}
               <form action={logoutAction}>
                 <button 
@@ -82,6 +75,8 @@ export default async function HomePage() {
             src="/images/building-puskod.jpeg" 
             alt="Gedung Antasari Puskod" 
             fill 
+            priority
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 896px"
             className="object-cover"
           />
         </div>

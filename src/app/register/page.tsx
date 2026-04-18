@@ -46,31 +46,28 @@ function RegisterForm() {
       )}
 
       <form action={formAction} className="space-y-4">
-        {/* Field Hidden/ReadOnly untuk NCAGE & Nama Perusahaan */}
         <div className="grid grid-cols-3 gap-3">
           <div className="col-span-1">
-            <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">NCAGE</label>
+            <label className="block text-sm font-semibold mb-1 text-gray-700">NCAGE</label>
             <input 
               name="ncageKode"
               type="text" 
-              value={ncageFromUrl} 
-              readOnly
-              className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-500 font-bold outline-none cursor-not-allowed" 
+              defaultValue={ncageFromUrl}
+              required
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium focus:ring-2 focus:ring-[#800000] outline-none transition" 
             />
           </div>
           <div className="col-span-2">
-            <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Nama Perusahaan</label>
+            <label className="block text-sm font-semibold mb-1 text-gray-700">Nama Perusahaan</label>
             <input 
               name="namaPerusahaan"
               type="text" 
-              value={nameFromUrl} 
-              readOnly
-              className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-500 font-bold outline-none cursor-not-allowed truncate" 
+              defaultValue={nameFromUrl}
+              required
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium focus:ring-2 focus:ring-[#800000] outline-none transition truncate" 
             />
           </div>
         </div>
-
-        <hr className="my-4 border-gray-100" />
 
         <div>
           <label className="block text-sm font-semibold mb-1 text-gray-700">Nama Lengkap POC</label>

@@ -4,13 +4,20 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Search, AlertCircle, X } from 'lucide-react';
+import { Search, AlertCircle, CheckCircle2, Info, X } from 'lucide-react';
 
 export default function CekNcagePage() {
   const [ncage, setNcage] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showError, setShowError] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
+  // Gabungkan semua state modal menjadi satu objek config
+  const [modalConfig, setModalConfig] = useState<{
+    show: boolean;
+    type: 'success' | 'error' | 'info';
+    title: string;
+    message: string;
+    target?: string;
+  } | null>(null);
+
   const router = useRouter();
 
   const handleCheckNcage = async (e: React.FormEvent) => {
@@ -27,23 +34,37 @@ export default function CekNcagePage() {
 
       const data = await res.json();
 
-      if (data.exists) {
-        router.push(data.target);
-      } else {
-        setErrorMessage(data.message);
-        setShowError(true);
-      }
+      // Set data ke modal, jangan langsung redirect
+      setModalConfig({
+        show: true,
+        type: data.type,
+        title: data.title,
+        message: data.message,
+        target: data.target
+      });
+
     } catch (err) {
-      setErrorMessage("Terjadi kesalahan koneksi ke server.");
-      setShowError(true);
+      setModalConfig({
+        show: true,
+        type: 'error',
+        title: 'Koneksi Gagal',
+        message: 'Tidak dapat terhubung ke server. Pastikan koneksi internet Anda stabil.'
+      });
     } finally {
       setLoading(false);
     }
   };
 
+  const handleModalAction = () => {
+    if (modalConfig?.target) {
+      router.push(modalConfig.target);
+    }
+    setModalConfig(null);
+  };
+
   return (
     <div className="min-h-screen bg-[#FDFBF7] font-sans text-[#1A1A1A] flex flex-col">
-      {/* Navbar - Konsisten dengan HomePage */}
+      {/* Navbar */}
       <nav className="flex items-center justify-between px-12 py-4 bg-white border-b border-gray-100 sticky top-0 z-50">
         <div className="flex items-center gap-3">
           <Image src="/images/logo-puskod.png" alt="Logo Puskod" width={50} height={50} />
@@ -54,8 +75,8 @@ export default function CekNcagePage() {
         </div>
         <div className="hidden md:flex items-center gap-8 text-sm font-semibold">
           <Link href="/" className="hover:text-[#800000]">Beranda</Link>
-          <Link href="/dashboard/pemohon/baru" className="hover:text-[#800000]">Pendaftaran NSN</Link>
-          <Link href="/dashboard/pemohon" className="hover:text-[#800000]">Dashboard Pantau Status</Link>
+          <Link href="/permohonan-nsn" className="hover:text-[#800000]">Permohonan NSN</Link>
+          <Link href="/pantau-status" className="hover:text-[#800000]">Pantau Status</Link>
           <Link href="/cek-ncage" className="text-[#800000]">Cek NCAGE</Link>
         </div>
         <div className="flex items-center gap-6">
@@ -105,32 +126,62 @@ export default function CekNcagePage() {
         </div>
       </main>
 
-      {/* Modal Error */}
-      {showError && (
+      {/* Modal Dinamis */}
+      {modalConfig?.show && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[100]">
           <div className="bg-white rounded-xl p-8 max-w-sm w-full shadow-2xl text-center">
-            <div className="bg-red-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto text-red-600 mb-4">
-              <AlertCircle size={32} />
+            {/* Icon Dinamis Berdasarkan Tipe */}
+            <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
+              modalConfig.type === 'success' ? 'bg-green-50 text-green-600' : 
+              modalConfig.type === 'info' ? 'bg-blue-50 text-blue-600' : 'bg-red-50 text-red-600'
+            }`}>
+              {modalConfig.type === 'success' && <CheckCircle2 size={32} />}
+              {modalConfig.type === 'info' && <Info size={32} />}
+              {modalConfig.type === 'error' && <AlertCircle size={32} />}
             </div>
-            <h3 className="text-xl font-bold text-[#1A1A1A] mb-2">Pendaftaran Ditolak</h3>
+
+            <h3 className="text-xl font-bold text-[#1A1A1A] mb-2">{modalConfig.title}</h3>
             <p className="text-sm text-gray-500 mb-6 leading-relaxed">
-              {errorMessage}
+              {modalConfig.message}
             </p>
+
             <button
-              onClick={() => setShowError(false)}
-              className="w-full bg-[#1A1A1A] text-white py-3 rounded-lg font-bold hover:bg-black transition"
+              onClick={handleModalAction}
+              className={`w-full py-3 rounded-lg font-bold text-white transition ${
+                modalConfig.type === 'error' ? 'bg-gray-800 hover:bg-black' : 'bg-[#800000] hover:bg-red-900'
+              }`}
             >
-              Tutup
+              {modalConfig.target ? 'Lanjutkan' : 'Tutup'}
             </button>
           </div>
         </div>
       )}
 
-      {/* Footer - Konsisten dengan HomePage */}
-      <footer className="bg-[#1A1A1A] text-white py-12 px-12">
-        <p className="text-center text-gray-500 text-xs">
-          © 2026 Pusat Kodifikasi, Baranahan, Kementerian Pertahanan Republik Indonesia.
-        </p>
+      {/* Footer */}
+      <footer className="bg-[#1A1A1A] text-white py-12 px-12 mt-20">
+        <div className="grid md:grid-cols-3 gap-12 border-b border-gray-800 pb-8">
+          <div>
+            <div className="flex items-center gap-3 mb-4">
+              <Image src="/images/logo-puskod.png" alt="Logo Puskod" width={50} height={50} />
+              <p className="font-bold text-lg">Pelayanan NSN <br /><span className="text-sm font-normal text-gray-400 text-sm">Pusat Kodifikasi</span></p>
+            </div>
+            <p className="text-gray-400 text-sm leading-relaxed">Jl. Pd. Labu Raya, RT.6/RW.6 Pd. Labu, Cilandak, Kota Jakarta Selatan, Daerah Khusus Ibukota Jakarta</p>
+          </div>
+          <div>
+            <h4 className="font-bold mb-4">Tautan</h4>
+            <ul className="text-gray-400 text-sm space-y-2">
+              <li><Link href="/">Beranda</Link></li>
+              <li><Link href="/permohonan-nsn">Permohonan NSN</Link></li>
+              <li><Link href="/pantau-status">Pantau Status</Link></li>
+            </ul>
+          </div>
+          <div>
+            <h4 className="font-bold mb-4">Kontak</h4>
+            <p className="text-gray-400 text-sm">📞 Call Center Puskod: 0812-8882-4545</p>
+            <p className="text-gray-400 text-sm mt-2">🕒 Jam Pelayanan: Senin - Jumat, 08:00 - 15:30 WIB</p>
+          </div>
+        </div>
+        <p className="text-center text-gray-500 text-xs mt-8">© 2026 Pusat Kodifikasi, Baranahan, Kementerian Pertahanan Republik Indonesia.</p>
       </footer>
     </div>
   );

@@ -19,7 +19,9 @@ export async function POST(request: Request) {
       await conn.close();
       return NextResponse.json({ 
         exists: false, 
-        message: "NCAGE belum terdaftar. Silakan hubungi bagian pendaftaran NCAGE." 
+        type: 'error',
+        title: 'NCAGE Tidak Ditemukan',
+        message: "Kode NCAGE belum terdaftar di database Pusat Kodifikasi. Silakan daftarkan NCAGE perusahaan Anda terlebih dahulu." 
       });
     }
 
@@ -35,15 +37,32 @@ export async function POST(request: Request) {
 
     // Tentukan arah navigasi
     if (resultUser.rows.length > 0) {
-      return NextResponse.json({ exists: true, hasAccount: true, target: '/login' });
+      // Skenario: NCAGE Ada & Sudah Punya Akun
+      return NextResponse.json({ 
+        exists: true, 
+        type: 'info',
+        title: 'Akun Sudah Terdaftar',
+        message: `Perusahaan ${entityName} sudah memiliki akun POC. Silakan masuk ke sistem.`,
+        target: '/login' 
+      });
     } else {
-      // Bawa data nama perusahaan ke halaman register agar user tidak perlu ketik ulang
+      // Skenario: NCAGE Ada & Belum Punya Akun
       const targetUrl = `/register?ncage=${ncageCode}&name=${encodeURIComponent(entityName)}`;
-      return NextResponse.json({ exists: true, hasAccount: false, target: targetUrl });
+      return NextResponse.json({ 
+        exists: true, 
+        type: 'success',
+        title: 'NCAGE Tervalidasi',
+        message: `NCAGE ditemukan untuk ${entityName}. Silakan lanjutkan pendaftaran akun POC.`,
+        target: targetUrl 
+      });
     }
 
   } catch (err) {
-    console.error(err);
-    return NextResponse.json({ error: "Terjadi kesalahan server" }, { status: 500 });
+    return NextResponse.json({ 
+      exists: false, 
+      type: 'error',
+      title: 'Kesalahan Sistem',
+      message: "Terjadi kesalahan pada server saat memeriksa NCAGE." 
+    }, { status: 500 });
   }
 }
