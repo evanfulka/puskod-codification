@@ -81,6 +81,17 @@ function RegisterForm() {
         </div>
 
         <div>
+          <label className="block text-sm font-semibold mb-1 text-gray-700">Nomor Identitas (NIK/NPWP/NIP)</label>
+          <input 
+            name="nomorIdentitas" 
+            type="text" 
+            required
+            placeholder="Masukkan nomor identitas resmi..." 
+            className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#800000] outline-none transition" 
+          />
+        </div>
+
+        <div>
           <label className="block text-sm font-semibold mb-1 text-gray-700">Email Perusahaan</label>
           <input 
             name="email" 

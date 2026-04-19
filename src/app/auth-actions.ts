@@ -21,6 +21,7 @@ export async function registerAction(prevState: any, formData: FormData) {
   const ncageKode = formData.get('ncageKode') as string;
   const namaPerusahaan = formData.get('namaPerusahaan') as string;
   const noTelp = formData.get('noTelp') as string;
+  const nomorIdentitas = formData.get('nomorIdentitas') as string;
 
   if (password !== confirmPassword) {
     return { success: false, message: "Konfirmasi password tidak cocok." };
@@ -32,9 +33,9 @@ export async function registerAction(prevState: any, formData: FormData) {
   try {
     await conn.execute(
       `INSERT INTO "SYSTEM"."USERS" 
-      ("NAMA_LENGKAP", "EMAIL", "PASSWORD", "ROLE", "NCAGE_KODE", "NAMA_PERUSAHAAN", "NO_TELP_WA") 
-      VALUES (:1, :2, :3, 'PEMOHON', :4, :5, :6)`,
-      [namaLengkap, email, hashedPassword, ncageKode, namaPerusahaan, noTelp]
+      ("NAMA_LENGKAP", "EMAIL", "PASSWORD", "ROLE", "NCAGE_KODE", "NAMA_PERUSAHAAN", "NO_TELP_WA", "NOMOR_IDENTITAS") 
+      VALUES (:1, :2, :3, 'PEMOHON', :4, :5, :6, :7)`,
+      [namaLengkap, email, hashedPassword, ncageKode, namaPerusahaan, noTelp, nomorIdentitas]
     );
     await conn.commit();
     return { success: true, message: "Registrasi berhasil!" }; // Kembalikan success, jangan redirect di sini
