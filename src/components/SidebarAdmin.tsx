@@ -10,6 +10,8 @@ import {
   ArrowLeftOnRectangleIcon,
   HomeIcon
 } from '@heroicons/react/24/outline';
+import { logoutAction } from '@/app/auth-actions';
+import { LogOut } from 'lucide-react';
 
 export default function SidebarAdmin() {
   const pathname = usePathname();
@@ -17,6 +19,7 @@ export default function SidebarAdmin() {
   const menuItems = [
     { name: 'Dashboard', href: '/admin', icon: HomeIcon },
     { name: 'Permohonan NSN', href: '/admin/permohonan', icon: InboxIcon },
+    { name: 'Tugas Kodifikasi', href: '/admin/pengerjaan', icon: InboxIcon },
     { name: 'Monitoring NSN', href: '/admin/monitoring', icon: DocumentMagnifyingGlassIcon },
     { name: 'Data Pegawai', href: '/admin/users', icon: UserGroupIcon },
     { name: 'Laporan Statistik', href: '/admin/stats', icon: ChartBarIcon },
@@ -50,10 +53,15 @@ export default function SidebarAdmin() {
       </nav>
 
       <div className="p-4 border-t border-gray-800">
-        <Link href="/" className="flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white transition">
-          <ArrowLeftOnRectangleIcon className="w-5 h-5" />
-          <span className="text-sm font-semibold">Keluar Panel</span>
-        </Link>
+        <form action={logoutAction}>
+          <button 
+            type="submit" 
+            className="flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white transition w-full text-left"
+          >
+            <LogOut className="w-5 h-5" />
+            <span className="text-sm font-semibold">Keluar Panel</span>
+          </button>
+        </form>
       </div>
     </aside>
   );

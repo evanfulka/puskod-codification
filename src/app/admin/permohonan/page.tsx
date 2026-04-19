@@ -32,34 +32,14 @@ export default async function AdminPermohonanPage() {
       "STATUS_SAAT_INI",
       TO_CHAR("TANGGAL_SUBMIT", 'DD/MM/YYYY HH24:MI') as TGL
     FROM "SYSTEM"."PERMOHONAN_HEADER"
+    WHERE "STATUS_SAAT_INI" IN ('Permohonan Baru', 'Verifikasi Berkas', 'Terbitkan SPRIN')
   `;
   
   let params: any = [];
 
   if (role === 'STAF_PUSKOD') {
     // Staf hanya melihat berkas baru yang perlu dicek administrasinya
-    query += ` WHERE "STATUS_SAAT_INI" IN ('Permohonan Baru', 'Verifikasi Berkas')`;
-  } 
-  else if (role === 'KATALOGER') {
-    // Kataloger hanya melihat permohonan yang ditugaskan kepadanya di SPRIN
-    query += ` 
-      WHERE "STATUS_SAAT_INI" = 'Proses Pengerjaan Kodifikasi' 
-      AND "ID_PERMOHONAN" IN (
-        SELECT "ID_PERMOHONAN" FROM "SYSTEM"."PERMOHONAN_TEAM" WHERE "ID_USER_PETUGAS" = :1
-      )
-    `;
-    params.push(userId);
-  } 
-  else if (role === 'VALTAKOD') {
-    // Valtakod melihat antrean validasi teknis dan finalisasi sertifikat
-    query += ` 
-      WHERE "STATUS_SAAT_INI" IN (
-        'Verifikasi Data Materiil dengan Mitra', 
-        'Validasi Data Kodifikasi', 
-        'Berita Acara dan Hasil Kodifikasi', 
-        'Sertifikat Kodifikasi'
-      )
-    `;
+    query += ` AND "STATUS_SAAT_INI" IN ('Permohonan Baru', 'Verifikasi Berkas')`;
   }
   // ADMINISTRATOR tidak difilter (bisa lihat semua status)
 

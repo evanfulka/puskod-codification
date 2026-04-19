@@ -8,6 +8,8 @@ import { redirect } from 'next/navigation';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 import oracledb from 'oracledb';
+import * as XLSX from 'xlsx';
+import fs from 'fs';
 
 const SECRET_KEY = new TextEncoder().encode('rahasia_puskod_kemhan_2026');
 
@@ -198,6 +200,239 @@ export async function submitPermohonanAction(prevState: any, formData: FormData)
     await conn.rollback();
     console.error(err);
     return { success: false, message: "Gagal menyimpan data: " + err.message };
+  } finally {
+    await conn.close();
+  }
+}
+
+export async function updateStatusAction(idPermohonan: number, statusBaru: string, catatan: string) {
+  const cookieStore = await cookies();
+  const token = cookieStore.get('session_token')?.value;
+  if (!token) return { success: false, message: "Sesi habis." };
+
+  const conn = await getConnection();
+
+  try {
+    const { payload }: any = await jwtVerify(token, SECRET_KEY);
+    const userIdPetugas = payload.userId;
+
+    // --- LOGIKA OTOMATISASI EXCEL ---
+    // Jika Staf klik "Mulai Verifikasi", baca Excel-nya
+    if (statusBaru === 'Verifikasi Berkas') {
+      // Hapus dulu data lama jika ada (mencegah duplikat kalau diklik ulang)
+      await conn.execute(`DELETE FROM "SYSTEM"."PERMOHONAN_MATERIIL" WHERE "ID_PERMOHONAN" = :1`, [idPermohonan]);
+      
+      // Jalankan fungsi ekstraksi
+      await extractMateriilFromExcel(idPermohonan, conn);
+    }
+    // --------------------------------
+
+    // Update Status di Header
+    await conn.execute(
+      `UPDATE "SYSTEM"."PERMOHONAN_HEADER" SET "STATUS_SAAT_INI" = :1 WHERE "ID_PERMOHONAN" = :2`,
+      [statusBaru, idPermohonan]
+    );
+
+    // Catat di Log
+    await conn.execute(
+      `INSERT INTO "SYSTEM"."PERMOHONAN_LOG" ("ID_PERMOHONAN", "STATUS", "KETERANGAN", "ID_USER_PETUGAS") 
+       VALUES (:1, :2, :3, :4)`,
+      [idPermohonan, statusBaru, catatan, userIdPetugas]
+    );
+
+    await conn.commit();
+    return { success: true, message: `Status berhasil diperbarui menjadi: ${statusBaru}` };
+
+  } catch (err: any) {
+    await conn.rollback();
+    return { success: false, message: err.message };
+  } finally {
+    await conn.close();
+  }
+}
+
+export async function terbitkanSprinAction(idPermohonan: number, tim: { idUser: number, posisi: string }[]) {
+  const conn = await getConnection();
+
+  try {
+    // Simpan Anggota Tim ke PERMOHONAN_TEAM
+    for (const person of tim) {
+      await conn.execute(
+        `INSERT INTO "SYSTEM"."PERMOHONAN_TEAM" ("ID_PERMOHONAN", "ID_USER_PETUGAS", "POSISI") 
+         VALUES (:1, :2, :3)`,
+        [idPermohonan, person.idUser, person.posisi]
+      );
+    }
+
+    // Update status ke Kataloger
+    const nextStatus = 'Proses Pengerjaan Kodifikasi';
+    await conn.execute(
+      `UPDATE "SYSTEM"."PERMOHONAN_HEADER" SET "STATUS_SAAT_INI" = :1 WHERE "ID_PERMOHONAN" = :2`,
+      [nextStatus, idPermohonan]
+    );
+
+    // Catat Log
+    await conn.execute(
+      `INSERT INTO "SYSTEM"."PERMOHONAN_LOG" ("ID_PERMOHONAN", "STATUS", "KETERANGAN") 
+       VALUES (:1, :2, :3)`,
+      [idPermohonan, nextStatus, 'Tim SPRIN telah ditetapkan. Menunggu pengerjaan kodifikasi oleh Kataloger.']
+    );
+
+    await conn.commit();
+    return { success: true, message: "SPRIN Berhasil Terbit! Tugas diteruskan ke Kataloger." };
+  } catch (err: any) {
+    await conn.rollback();
+    return { success: false, message: err.message };
+  } finally {
+    await conn.close();
+  }
+}
+
+// Fungsi pembantu untuk membaca Excel dan simpan ke DB
+async function extractMateriilFromExcel(idPermohonan: number, conn: any) {
+  console.log(`--- Memulai Ekstraksi Excel untuk ID: ${idPermohonan} ---`);
+
+  // Cari path file dari DB
+  const result: any = await conn.execute(
+    `SELECT "FILE_DOKUMEN_MATERIIL" FROM "SYSTEM"."PERMOHONAN_HEADER" WHERE "ID_PERMOHONAN" = :1`,
+    [idPermohonan],
+    { outFormat: oracledb.OUT_FORMAT_OBJECT }
+  );
+
+  console.log("Raw Result from DB:", JSON.stringify(result.rows[0]));
+
+  // Gunakan optional chaining dan pastikan nama kolom HURUF BESAR
+  const row = result.rows[0];
+  const relativePath = row?.FILE_DOKUMEN_MATERIIL; 
+
+  if (!relativePath) {
+    console.log("Error: Kolom FILE_DOKUMEN_MATERIIL kosong atau tidak ditemukan.");
+    return;
+  }
+
+  // Membangun Path File yang Benar
+  // Hilangkan slash di awal jika ada agar path.join tidak bingung di Windows
+  const cleanRelativePath = relativePath.startsWith('/') ? relativePath.substring(1) : relativePath;
+  const fullPath = path.join(process.cwd(), 'public', cleanRelativePath);
+  
+  console.log("Mencoba membaca file fisik di:", fullPath);
+
+  if (!fs.existsSync(fullPath)) {
+    console.log("Error: File fisik tidak ditemukan di path tersebut.");
+    return;
+  }
+
+  // Baca file Excel
+  const fileBuffer = fs.readFileSync(fullPath);
+  const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
+  const sheetName = workbook.SheetNames[0];
+  const sheet = workbook.Sheets[sheetName];
+  
+  // Ambil data sebagai JSON
+  const rows: any[] = XLSX.utils.sheet_to_json(sheet);
+  
+  console.log(`Berhasil membaca Excel. Jumlah baris data: ${rows.length}`);
+
+  // Looping dan Insert
+  for (const rowData of rows) {
+    await conn.execute(
+      `INSERT INTO "SYSTEM"."PERMOHONAN_MATERIIL" (
+        "ID_PERMOHONAN", "NAMA_MATERIIL", "PART_NUMBER", "NSN_MITRA", 
+        "SPEKTEK", "IPCIPB", "GAMBAR_MATERIIL", "NAMA_PENYEDIA", 
+        "NCAGE_PENYEDIA", "NEGARA_PENYEDIA"
+      ) VALUES (:1, :2, :3, :4, :5, :6, :7, :8, :9, :10)`,
+      [
+        idPermohonan, 
+        rowData.nama_materiil || null, 
+        rowData.part_number || null, 
+        rowData.nsn || null,
+        rowData.spektek || null,
+        rowData.ipcipb || null,
+        rowData.gambar_materiil || null,
+        rowData.nama_penyedia || null,
+        rowData.ncage_penyedia || null,
+        rowData.negara_penyedia || null
+      ]
+    );
+  }
+  
+  console.log(`--- Ekstraksi Selesai: ${rows.length} item masuk ke DB ---`);
+}
+
+export async function saveMateriilAction(idMateriil: any, formData: any) {
+  const conn = await getConnection();
+  try {
+    // Siapkan Object Binds (Kita mulai dengan ID_MATERIIL sebagai :id)
+    const binds: any = { 
+      id: Number(idMateriil) 
+    };
+    
+    const setClauses: string[] = [];
+
+    // Looping data untuk membangun SET clause dan mengisi Object Binds
+    Object.keys(formData).forEach((key) => {
+      if (key === key.toUpperCase() && key !== 'ID_MATERIIL' && key !== 'ID_PERMOHONAN' && key !== 'TGL') {
+        let value = formData[key];
+
+        if (key === 'UP_PRICE') {
+          if (value === "" || value === null || value === undefined) {
+            value = null;
+          } else {
+            const cleanedNum = String(value).replace(/[^0-9.]/g, "");
+            value = (cleanedNum === "" || isNaN(Number(cleanedNum))) ? null : Number(cleanedNum);
+          }
+        } else {
+          value = (value === "" || value === undefined || value === null) ? null : String(value);
+        }
+
+        // Simpan ke object binds dengan key yang sama
+        binds[key] = value;
+        // Gunakan nama key sebagai bind variable
+        setClauses.push(`"${key}" = :${key}`);
+      }
+    });
+
+    if (setClauses.length === 0) return { success: false, message: "Tidak ada data." };
+
+    // Susun SQL dengan Named Binds
+    const sql = `UPDATE "SYSTEM"."PERMOHONAN_MATERIIL" SET ${setClauses.join(', ')} WHERE "ID_MATERIIL" = :id`;
+    
+    console.log("Menjalankan UPDATE dengan Named Binds...");
+    
+    // Kirim 'binds' sebagai OBJECT, bukan ARRAY
+    const result = await conn.execute(sql, binds);
+    
+    await conn.commit();
+    return { success: true, message: "Data materiil berhasil disimpan." };
+
+  } catch (err: any) {
+    console.error("DATABASE ERROR DETAIL:", err);
+    if (conn) await conn.rollback();
+    return { success: false, message: "Gagal menyimpan: " + err.message };
+  } finally {
+    if (conn) await conn.close();
+  }
+}
+
+// Action untuk Ketua Tim menyelesaikan seluruh proses
+export async function selesaikanKodifikasiAction(idPermohonan: number) {
+  const conn = await getConnection();
+  try {
+    const nextStatus = 'Berita Acara dan Hasil Kodifikasi';
+    await conn.execute(
+      `UPDATE "SYSTEM"."PERMOHONAN_HEADER" SET "STATUS_SAAT_INI" = :1 WHERE "ID_PERMOHONAN" = :2`,
+      [nextStatus, idPermohonan]
+    );
+    await conn.execute(
+      `INSERT INTO "SYSTEM"."PERMOHONAN_LOG" ("ID_PERMOHONAN", "STATUS", "KETERANGAN") 
+       VALUES (:1, :2, :3)`,
+      [idPermohonan, nextStatus, 'Proses kodifikasi dinyatakan selesai oleh Ketua Tim. Menunggu upload Berita Acara.']
+    );
+    await conn.commit();
+    return { success: true, message: "Seluruh proses kodifikasi selesai!" };
+  } catch (err: any) {
+    await conn.rollback();
+    return { success: false, message: err.message };
   } finally {
     await conn.close();
   }
