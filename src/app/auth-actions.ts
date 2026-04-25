@@ -1,5 +1,6 @@
 'use server';
 
+import * as XLSX from 'xlsx';
 import { getConnection } from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import { cookies } from 'next/headers';
@@ -8,7 +9,6 @@ import { redirect } from 'next/navigation';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 import oracledb from 'oracledb';
-import * as XLSX from 'xlsx';
 import fs from 'fs';
 
 const SECRET_KEY = new TextEncoder().encode('rahasia_puskod_kemhan_2026');
@@ -434,6 +434,285 @@ export async function selesaikanKodifikasiAction(idPermohonan: number) {
   } catch (err: any) {
     await conn.rollback();
     return { success: false, message: err.message };
+  } finally {
+    await conn.close();
+  }
+}
+
+// Action untuk Upload Dokumen (BA, Summary, Sertifikat)
+export async function uploadOutputAction(idPermohonan: number, formData: FormData, fileType: 'BA' | 'HASIL' | 'SERTIFIKAT') {
+  const conn = await getConnection();
+  try {
+    const file = formData.get('file') as File;
+    if (!file) throw new Error("File tidak ditemukan");
+
+    // Ambil Nama Perusahaan untuk penamaan file
+    const res: any = await conn.execute(
+      `SELECT "NAMA_PERUSAHAAN" FROM "SYSTEM"."PERMOHONAN_HEADER" WHERE "ID_PERMOHONAN" = :1`,
+      [idPermohonan], { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    const namaPT = res.rows[0].NAMA_PERUSAHAAN.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '');
+
+    // Tentukan Nama File & Kolom
+    const extension = path.extname(file.name);
+    const fileName = `${idPermohonan}_${namaPT}_${fileType}${extension}`;
+    const column = fileType === 'BA' ? 'FILE_BA' : fileType === 'HASIL' ? 'FILE_HASIL_KODIFIKASI' : 'FILE_SERTIFIKAT';
+    
+    const uploadDir = path.join(process.cwd(), 'public/uploads/results');
+    if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
+    const filePath = path.join(uploadDir, fileName);
+    const buffer = Buffer.from(await file.arrayBuffer());
+    fs.writeFileSync(filePath, buffer);
+
+    const relativePath = `/uploads/results/${fileName}`;
+    await conn.execute(
+      `UPDATE "SYSTEM"."PERMOHONAN_HEADER" SET "${column}" = :1 WHERE "ID_PERMOHONAN" = :2`,
+      [relativePath, idPermohonan]
+    );
+
+    await conn.commit();
+    return { success: true, message: `File ${fileType} berhasil diunggah.` };
+  } catch (err: any) {
+    return { success: false, message: err.message };
+  } finally {
+    await conn.close();
+  }
+}
+
+// Action untuk Export Detail (70+ Field) secara Otomatis
+export async function exportDetailAction(idPermohonan: number) {
+  const conn = await getConnection();
+  try {
+    // Ambil Data
+    const resMateriil: any = await conn.execute(
+      `SELECT * FROM "SYSTEM"."PERMOHONAN_MATERIIL" WHERE "ID_PERMOHONAN" = :1 ORDER BY "ID_MATERIIL" ASC`,
+      [idPermohonan], { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    const resHeader: any = await conn.execute(
+      `SELECT "NAMA_PERUSAHAAN" FROM "SYSTEM"."PERMOHONAN_HEADER" WHERE "ID_PERMOHONAN" = :1`,
+      [idPermohonan], { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+
+    if (resMateriil.rows.length === 0) throw new Error("Data materiil kosong, tidak ada yang bisa di-export.");
+
+    // Format Nama File & Path secara Robust (Gunakan path.join tanpa slash manual)
+    const namaPT = resHeader.rows[0].NAMA_PERUSAHAAN.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '');
+    const fileName = `${idPermohonan}_${namaPT}_DETAIL-KODIFIKASI.xlsx`;
+    
+    // Gunakan urutan join yang benar untuk Windows/Linux
+    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'results');
+    const fullPath = path.join(uploadDir, fileName);
+    const relativePath = `/uploads/results/${fileName}`;
+
+    console.log("Mencoba menyimpan file ke:", fullPath);
+
+    // Pastikan Folder Tersedia
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+      console.log("Folder baru berhasil dibuat.");
+    }
+
+    // Generate Excel menggunakan Buffer
+    const worksheet = XLSX.utils.json_to_sheet(resMateriil.rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Detail Kodifikasi");
+    
+    // Tulis ke Buffer dulu
+    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'buffer' });
+    
+    // Gunakan fs.writeFileSync (Jika ini gagal, errornya lebih mendetail)
+    fs.writeFileSync(fullPath, excelBuffer);
+
+    // Update Database
+    await conn.execute(
+      `UPDATE "SYSTEM"."PERMOHONAN_HEADER" SET "FILE_HASIL_DETAIL" = :1 WHERE "ID_PERMOHONAN" = :2`,
+      [relativePath, idPermohonan]
+    );
+
+    await conn.commit();
+    console.log("File berhasil disimpan dan DB berhasil diupdate.");
+    
+    return { success: true, downloadUrl: `${relativePath}?t=${Date.now()}` };
+  } catch (err: any) {
+    console.error("--- DETAIL ERROR EXPORT ---");
+    console.error(err);
+    return { success: false, message: "Gagal menyimpan file: " + err.message };
+  } finally {
+    if (conn) await conn.close();
+  }
+}
+
+export async function getPermohonanLogsAction(idPermohonan: number) {
+  // PAKSA: Semua CLOB harus dibaca sebagai string
+  oracledb.fetchAsString = [oracledb.CLOB];
+  
+  const conn = await getConnection();
+  try {
+    const result: any = await conn.execute(
+      `SELECT l.*, u."NAMA_LENGKAP", u."JABATAN", u."NOMOR_IDENTITAS"
+       FROM "SYSTEM"."PERMOHONAN_LOG" l
+       LEFT JOIN "SYSTEM"."USERS" u ON l."ID_USER_PETUGAS" = u."ID_USER"
+       WHERE l."ID_PERMOHONAN" = :1
+       ORDER BY l."TANGGAL_LOG" ASC`,
+      [idPermohonan],
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+
+    // Pastikan kita hanya mengambil rows-nya saja dan membersihkannya
+    const cleanLogs = JSON.parse(JSON.stringify(result.rows));
+
+    return { 
+      success: true, 
+      logs: cleanLogs 
+    };
+  } catch (err: any) {
+    console.error("Error Fetch Logs:", err);
+    return { success: false, message: err.message };
+  } finally {
+    if (conn) await conn.close();
+  }
+}
+
+export async function updatePermohonanAction(prevState: any, formData: FormData) {
+  const cookieStore = await cookies();
+  const token = cookieStore.get('session_token')?.value;
+  if (!token) return { success: false, message: "Sesi habis." };
+
+  const conn = await getConnection();
+  try {
+    const { payload }: any = await jwtVerify(token, SECRET_KEY);
+    const userId = payload.userId;
+    const idPermohonan = formData.get('idPermohonan');
+
+    // Ambil data dari FormData
+    const ncage = formData.get('ncage') as String;
+    const noSurat = formData.get('noSurat') as String;
+    const pengadaan = formData.get('pengadaan') as String;
+    const noKontrak = formData.get('noKontrak') as String;
+    const namaPerusahaan = formData.get('namaPerusahaan') as String;
+    const namaLengkap = formData.get('namaLengkap') as String;
+    const alamat = formData.get('alamat') as String;
+    const noTelp = formData.get('noTelp') as String;
+    const email = formData.get('email') as String;
+    const jabatan = formData.get('jabatan') as String;
+    const noIdentitas = formData.get('noIdentitas') as String;
+
+    // Update Header (Reset status ke 'Verifikasi Berkas')
+    await conn.execute(
+      `UPDATE "SYSTEM"."PERMOHONAN_HEADER" SET 
+        "NCAGE" = :1, "NO_SURAT_PERMOHONAN" = :2, "PENGADAAN" = :3, 
+        "NO_KONTRAK" = :4, "NAMA_PERUSAHAAN" = :5, "NAMA_LENGKAP" = :6,
+        "ALAMAT" = :7, "NOMOR_TELEPON" = :8, "EMAIL_PERUSAHAAN" = :9,
+        "JABATAN" = :10, "NOMOR_IDENTITAS" = :11,
+        "STATUS_SAAT_INI" = 'Verifikasi Berkas'
+       WHERE "ID_PERMOHONAN" = :12 AND "ID_USER" = :13`,
+      [ncage, noSurat, pengadaan, noKontrak, namaPerusahaan, namaLengkap, alamat, noTelp, email, jabatan, noIdentitas, idPermohonan, userId]
+    );
+
+    // Proses Upload File
+    const sanitizedCompName = namaPerusahaan.replace(/[^a-z0-9]/gi, '-').toUpperCase();
+    const files = [
+      { key: 'fileSurat', label: 'SURAT-PERMOHONAN' },
+      { key: 'fileKontrak', label: 'DOKUMEN-KONTRAK' },
+      { key: 'fileMateriil', label: 'DOKUMEN-MATERIIL' },
+      { key: 'fileIpc', label: 'DOKUMEN-IPC-IPB' }
+    ];
+
+    const filePaths: any = {};
+
+    for (const f of files) {
+      const file = formData.get(f.key) as File;
+      if (file && file.size > 0) {
+        const ext = path.extname(file.name);
+        const fileName = `${idPermohonan}_${sanitizedCompName}_${f.label}${ext}`;
+        const buffer = Buffer.from(await file.arrayBuffer());
+        const filePath = path.join(process.cwd(), 'public/uploads/permohonan', fileName);
+        
+        await writeFile(filePath, buffer);
+        filePaths[f.key] = `/uploads/permohonan/${fileName}`;
+      }
+    }
+
+    // Update File Paths ke Database & Commit Permanen
+    await conn.execute(
+      `UPDATE "SYSTEM"."PERMOHONAN_HEADER" SET 
+        "FILE_SURAT_PERMOHONAN" = :1, 
+        "FILE_DOKUMEN_KONTRAK" = :2, 
+        "FILE_DOKUMEN_MATERIIL" = :3, 
+        "FILE_IPC_IPB" = :4 
+      WHERE "ID_PERMOHONAN" = :5`,
+      [filePaths.fileSurat || null, filePaths.fileKontrak || null, filePaths.fileMateriil || null, filePaths.fileIpc || null, idPermohonan]
+    );
+
+    // Catat Log
+    await conn.execute(
+      `INSERT INTO "SYSTEM"."PERMOHONAN_LOG" ("ID_PERMOHONAN", "STATUS", "KETERANGAN", "ID_USER_PETUGAS") 
+       VALUES (:1, 'Verifikasi Berkas', 'Mitra telah melakukan perbaikan data/dokumen.', :2)`,
+      [idPermohonan, userId]
+    );
+
+    await conn.commit();
+    return { success: true, message: "Perbaikan berhasil dikirim!" };
+  } catch (err: any) {
+    if (conn) await conn.rollback();
+    return { success: false, message: err.message };
+  } finally {
+    await conn.close();
+  }
+}
+
+export async function updatePegawaiAction(id: number, data: any) {
+  const conn = await getConnection();
+  try {
+    await conn.execute(
+      `UPDATE "SYSTEM"."USERS" SET 
+        "NAMA_LENGKAP" = :1, 
+        "EMAIL" = :2, 
+        "JABATAN" = :3, 
+        "PANGKAT_GOLONGAN" = :4, 
+        "ROLE" = :5,
+        "NOMOR_IDENTITAS" = :6,
+        "NO_TELP_WA" = :7
+       WHERE "ID_USER" = :8`,
+      [data.nama, data.email, data.jabatan, data.pangkat, data.role, data.nip, data.wa, id]
+    );
+    await conn.commit();
+    return { success: true, message: "Data pegawai berhasil diperbarui." };
+  } catch (err: any) {
+    return { success: false, message: err.message };
+  } finally {
+    await conn.close();
+  }
+}
+
+export async function addPegawaiAction(prevState: any, formData: FormData) {
+  const conn = await getConnection();
+  try {
+    const nama = formData.get('nama') as string;
+    const email = formData.get('email') as string;
+    const password = formData.get('password') as string;
+    const role = formData.get('role') as string;
+    const nip = formData.get('nip') as string;
+    const wa = formData.get('wa') as string;
+    const jabatan = formData.get('jabatan') as string;
+    const pangkat = formData.get('pangkat') as string;
+
+    // Hash Password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    await conn.execute(
+      `INSERT INTO "SYSTEM"."USERS" 
+      ("NAMA_LENGKAP", "EMAIL", "PASSWORD", "ROLE", "NOMOR_IDENTITAS", "NO_TELP_WA", "JABATAN", "PANGKAT_GOLONGAN") 
+      VALUES (:1, :2, :3, :4, :5, :6, :7, :8)`,
+      [nama, email, hashedPassword, role, nip, wa, jabatan, pangkat]
+    );
+
+    await conn.commit();
+    return { success: true, message: "Pegawai baru berhasil ditambahkan!" };
+  } catch (err: any) {
+    if (err.message.includes('ORA-00001')) return { success: false, message: "Email sudah digunakan." };
+    return { success: false, message: "Gagal menambah pegawai: " + err.message };
   } finally {
     await conn.close();
   }

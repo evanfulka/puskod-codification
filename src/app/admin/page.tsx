@@ -1,66 +1,169 @@
 import { getConnection } from '@/lib/db';
 import oracledb from 'oracledb';
 import { 
-  InboxIcon, 
-  CheckCircleIcon, 
-  ArrowPathIcon, 
-  ExclamationTriangleIcon,
-  ChartBarIcon
-} from '@heroicons/react/24/outline';
+  FileText, Activity, CheckCircle2, AlertCircle, 
+  Clock, ShieldCheck, ArrowRight 
+} from 'lucide-react';
+import Link from 'next/link';
 
-export default async function AdminDashboard() {
+export default async function AdminDashboardPage() {
+  oracledb.fetchAsString = [oracledb.CLOB];
+  
   const conn = await getConnection();
-  
-  // Ambil statistik permohonan secara real-time dari database
-  const stats: any = await conn.execute(
-    `SELECT 
+
+  try {
+    // Ambil Statistik Utama
+    const statsRes: any = await conn.execute(
+      `SELECT 
         COUNT(*) as TOTAL,
-        COUNT(CASE WHEN "STATUS_SAAT_INI" = 'Permohonan Baru' THEN 1 END) as BARU,
-        COUNT(CASE WHEN "STATUS_SAAT_INI" LIKE 'Proses%' OR "STATUS_SAAT_INI" LIKE 'Validasi%' THEN 1 END) as PROSES,
-        COUNT(CASE WHEN "STATUS_SAAT_INI" = 'Selesai - Sertifikat Terbit' THEN 1 END) as SELESAI
-     FROM "SYSTEM"."PERMOHONAN_HEADER"`,
-    [],
-    { outFormat: oracledb.OUT_FORMAT_OBJECT }
-  );
-  
-  const data = stats.rows[0];
-  await conn.close();
+        SUM(CASE WHEN "STATUS_SAAT_INI" = 'Selesai' THEN 1 ELSE 0 END) as SELESAI,
+        SUM(CASE WHEN "STATUS_SAAT_INI" = 'Revisi Berkas' THEN 1 ELSE 0 END) as REVISI,
+        SUM(CASE WHEN "STATUS_SAAT_INI" NOT IN ('Selesai', 'Draft', 'Revisi Berkas') THEN 1 ELSE 0 END) as PROSES
+       FROM "SYSTEM"."PERMOHONAN_HEADER"`,
+      [], { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
 
-  return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-black text-[#1A1A1A] uppercase tracking-tight">Dashboard Ringkasan</h1>
-        <p className="text-gray-500 text-sm">Selamat datang di Panel Kontrol Pelayanan NSN.</p>
-      </div>
+    // Ambil Aktifitas Terbaru (Audit Trail)
+    const recentLogsRes: any = await conn.execute(
+      `SELECT l.*, u."NAMA_LENGKAP", h."NAMA_PERUSAHAAN"
+       FROM "SYSTEM"."PERMOHONAN_LOG" l
+       JOIN "SYSTEM"."USERS" u ON l."ID_USER_PETUGAS" = u."ID_USER"
+       JOIN "SYSTEM"."PERMOHONAN_HEADER" h ON l."ID_PERMOHONAN" = h."ID_PERMOHONAN"
+       ORDER BY l."TANGGAL_LOG" DESC
+       FETCH NEXT 6 ROWS ONLY`,
+      [], { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
 
-      {/* Grid Statistik */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title="Total Masuk" value={data.TOTAL} icon={InboxIcon} color="bg-blue-500" />
-        <StatCard title="Perlu Verifikasi" value={data.BARU} icon={ExclamationTriangleIcon} color="bg-orange-500" />
-        <StatCard title="Sedang Diproses" value={data.PROSES} icon={ArrowPathIcon} color="bg-[#800000]" />
-        <StatCard title="Selesai" value={data.SELESAI} icon={CheckCircleIcon} color="bg-green-500" />
-      </div>
+    // Ambil Antrean Berkas Baru
+    const pendingRes: any = await conn.execute(
+      `SELECT "ID_PERMOHONAN", "NAMA_PERUSAHAAN", "STATUS_SAAT_INI"
+       FROM "SYSTEM"."PERMOHONAN_HEADER"
+       WHERE "STATUS_SAAT_INI" IN ('Permohonan Baru', 'Verifikasi Berkas')
+       ORDER BY "ID_PERMOHONAN" ASC
+       FETCH NEXT 5 ROWS ONLY`,
+      [], { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
 
-      {/* Section Tambahan (Akan kita isi dengan Aktivitas Terakhir nanti) */}
-      <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm min-h-[300px] flex flex-col items-center justify-center text-center">
-         <div className="text-gray-300 mb-2">
-            <ChartBarIcon className="w-12 h-12 mx-auto" />
-         </div>
-         <p className="text-gray-400 text-sm font-medium">Grafik aktivitas mingguan akan muncul di sini <br/>setelah lebih banyak data masuk.</p>
+    await conn.close();
+
+    const stats = statsRes.rows[0];
+    const logs = JSON.parse(JSON.stringify(recentLogsRes.rows));
+    const pending = pendingRes.rows;
+
+    return (
+      <div className="p-8 space-y-10 bg-gray-50/30 min-h-screen">
+        {/* HEADER */}
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-4xl font-black uppercase tracking-tighter text-gray-900 italic">
+              Operational <span className="text-[#800000]">Dashboard</span>
+            </h1>
+            <p className="text-sm text-gray-500 font-bold uppercase tracking-widest mt-1">
+              Pusat Kodifikasi Baranahan Kemhan — Real-time Monitor
+            </p>
+          </div>
+          <div className="bg-white px-6 py-3 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-3">
+             <div className="w-2 h-2 bg-green-500 rounded-full animate-ping"></div>
+             <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">System Live</span>
+          </div>
+        </div>
+
+        {/* STATS CARDS */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <StatCard title="Total Permohonan" value={stats.TOTAL} icon={<FileText />} color="bg-blue-600" />
+          <StatCard title="Sedang Diproses" value={stats.PROSES} icon={<Activity />} color="bg-orange-500" />
+          <StatCard title="Perlu Revisi" value={stats.REVISI} icon={<AlertCircle />} color="bg-red-600" />
+          <StatCard title="Proses Tuntas" value={stats.SELESAI} icon={<CheckCircle2 />} color="bg-green-600" />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* AKTIFITAS TERBARU */}
+          <div className="lg:col-span-2 space-y-6">
+            <h3 className="text-lg font-black uppercase tracking-tight flex items-center gap-2">
+                <Clock className="text-[#800000]" size={20} /> Aktifitas Petugas Terkini
+            </h3>
+            <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm p-8 space-y-6">
+              {logs.map((log: any, i: number) => (
+                <div key={i} className="flex gap-4 items-start group">
+                  <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-[#800000] group-hover:text-white transition-all duration-300">
+                      <ShieldCheck size={20} />
+                  </div>
+                  <div className="flex-1 border-b border-gray-50 pb-4 last:border-0">
+                      <div className="flex justify-between items-start">
+                          <p className="text-sm font-black text-gray-900 uppercase tracking-tight">
+                              {log.NAMA_LENGKAP} 
+                              <span className="ml-2 font-bold text-[9px] text-blue-600 bg-blue-50 px-2 py-0.5 rounded uppercase border border-blue-100">
+                                  {log.STATUS}
+                              </span>
+                          </p>
+                          <span className="text-[10px] font-bold text-gray-300 italic">
+                              {new Date(log.TANGGAL_LOG).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                      </div>
+                      <p className="text-[11px] text-gray-500 mt-1 uppercase font-bold">
+                          {log.NAMA_PERUSAHAAN} — <span className="italic font-medium normal-case text-gray-400">"{log.KETERANGAN}"</span>
+                      </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* ANTREAN PRIORITAS */}
+          <div className="space-y-6">
+            <h3 className="text-lg font-black uppercase tracking-tight flex items-center gap-2">
+              <AlertCircle className="text-orange-500" size={20} /> Berkas Masuk Terbaru
+            </h3>
+            <div className="bg-[#1A1A1A] rounded-[2.5rem] p-8 shadow-xl text-white space-y-6">
+              {pending.map((item: any) => (
+                <div key={item.ID_PERMOHONAN} className="p-4 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition group">
+                  <div className="flex justify-between items-start mb-1">
+                      <p className="text-[10px] font-black text-[#800000] uppercase">ID #{item.ID_PERMOHONAN}</p>
+                      <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 bg-orange-500 text-white rounded">NEW</span>
+                  </div>
+                  <h4 className="text-sm font-bold uppercase leading-tight line-clamp-1">{item.NAMA_PERUSAHAAN}</h4>
+                  <div className="mt-4 flex justify-between items-center">
+                      <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 italic">
+                          {item.STATUS_SAAT_INI}
+                      </span>
+                      <Link href={`/admin/permohonan`} className="p-2 bg-white text-black rounded-lg group-hover:bg-[#800000] group-hover:text-white transition shadow-lg">
+                          <ArrowRight size={14} />
+                      </Link>
+                  </div>
+                </div>
+              ))}
+              {pending.length === 0 && <p className="text-xs text-gray-500 italic text-center py-10">Tidak ada antrean baru.</p>}
+              
+              <Link href="/admin/permohonan" className="block text-center pt-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 hover:text-white transition">
+                  Buka Menu Permohonan
+              </Link>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
-  );
+    );
+  } catch (error: any) {
+    console.error("--- ERROR DASHBOARD ---", error);
+    if (conn) await conn.close();
+    return (
+      <div className="p-20 text-center">
+        <h2 className="text-red-600 font-black uppercase">Database Error</h2>
+        <p className="text-sm text-gray-500">{error.message}</p>
+      </div>
+    );
+  }
 }
 
-function StatCard({ title, value, icon: Icon, color }: any) {
+// HELPER STAT CARD
+function StatCard({ title, value, icon, color }: { title: string, value: any, icon: any, color: string }) {
   return (
-    <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex items-center gap-5 transition-transform hover:scale-[1.02]">
-      <div className={`${color} p-3 rounded-lg text-white`}>
-        <Icon className="w-6 h-6" />
+    <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm flex items-center gap-5 hover:scale-[1.02] transition-transform duration-300">
+      <div className={`p-4 rounded-2xl text-white shadow-lg ${color}`}>
+        {icon}
       </div>
       <div>
-        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">{title}</p>
-        <p className="text-2xl font-black text-gray-900">{value}</p>
+        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">{title}</p>
+        <p className="text-3xl font-black text-gray-900 tracking-tighter italic">{value || 0}</p>
       </div>
     </div>
   );

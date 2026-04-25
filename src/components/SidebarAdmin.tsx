@@ -20,9 +20,10 @@ export default function SidebarAdmin() {
     { name: 'Dashboard', href: '/admin', icon: HomeIcon },
     { name: 'Permohonan NSN', href: '/admin/permohonan', icon: InboxIcon },
     { name: 'Tugas Kodifikasi', href: '/admin/pengerjaan', icon: InboxIcon },
-    { name: 'Monitoring NSN', href: '/admin/monitoring', icon: DocumentMagnifyingGlassIcon },
-    { name: 'Data Pegawai', href: '/admin/users', icon: UserGroupIcon },
-    { name: 'Laporan Statistik', href: '/admin/stats', icon: ChartBarIcon },
+    { name: 'Validasi NSN', href: '/admin/validasi', icon: InboxIcon },
+    { name: 'Monitoring Track Record', href: '/admin/monitoring', icon: DocumentMagnifyingGlassIcon },
+    { name: 'Data Pegawai', href: '/admin/pegawai', icon: UserGroupIcon },
+    { name: 'Laporan Statistik', href: '/admin/statistik', icon: ChartBarIcon },
   ];
 
   return (
