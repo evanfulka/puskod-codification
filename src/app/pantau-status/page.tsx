@@ -30,6 +30,7 @@ export default async function PantauStatusPage() {
         "NO_SURAT_PERMOHONAN", 
         "PENGADAAN", 
         "STATUS_SAAT_INI", 
+        "FILE_BA", "FILE_HASIL_KODIFIKASI", "FILE_SERTIFIKAT",
         TO_CHAR("TANGGAL_SUBMIT", 'DD Mon YYYY') as TGL
        FROM "SYSTEM"."PERMOHONAN_HEADER"
        WHERE "ID_USER" = :1

@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { 
   Search, Clock, CheckCircle2, AlertCircle, 
-  ChevronRight, ArrowUpRight, X, Loader2 
+  ChevronRight, ArrowUpRight, X, Loader2,
+  FileSpreadsheet, FileCheck, Award, Download
 } from 'lucide-react';
 import TrackRecord from './TrackRecord';
 import { getPermohonanLogsAction } from '@/app/auth-actions';
@@ -99,6 +100,59 @@ export default function PantauStatusClient({ data }: { data: any[] }) {
                   </Link>
                 )}
               </div>
+
+              {isSelesai && (
+              <div className="mt-6 pt-6 border-t border-green-100 space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                <p className="text-[10px] font-black text-green-600 uppercase tracking-[0.2em] mb-2">Dokumen Hasil Tersedia:</p>
+                
+                <div className="grid grid-cols-1 gap-2">
+                  {/* 1. Download Berita Acara */}
+                  <a 
+                    href={`${item.FILE_BA}`} 
+                    download 
+                    className="flex items-center justify-between p-3 bg-white border border-green-200 rounded-xl hover:bg-green-50 transition group"
+                  >
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-green-100 text-green-600 rounded-lg group-hover:bg-green-600 group-hover:text-white transition">
+                            <FileCheck size={14} />
+                        </div>
+                        <span className="text-[10px] font-black uppercase text-gray-700">Berita Acara</span>
+                    </div>
+                    <Download size={14} className="text-gray-300 group-hover:text-green-600" />
+                  </a>
+
+                  {/* 2. Download Hasil Kodifikasi (Excel) */}
+                  <a 
+                    href={`${item.FILE_HASIL_KODIFIKASI}`} 
+                    download 
+                    className="flex items-center justify-between p-3 bg-white border border-green-200 rounded-xl hover:bg-green-50 transition group"
+                  >
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-green-100 text-green-600 rounded-lg group-hover:bg-green-600 group-hover:text-white transition">
+                            <FileSpreadsheet size={14} />
+                        </div>
+                        <span className="text-[10px] font-black uppercase text-gray-700">Hasil Kodifikasi</span>
+                    </div>
+                    <Download size={14} className="text-gray-300 group-hover:text-green-600" />
+                  </a>
+
+                  {/* 3. Download Sertifikat Akhir */}
+                  <a 
+                    href={`${item.FILE_SERTIFIKAT}`} 
+                    download 
+                    className="flex items-center justify-between p-3 bg-white border border-green-200 rounded-xl hover:bg-green-50 transition group"
+                  >
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-green-100 text-green-600 rounded-lg group-hover:bg-green-600 group-hover:text-white transition">
+                            <Award size={14} />
+                        </div>
+                        <span className="text-[10px] font-black uppercase text-gray-700">Sertifikat NSN</span>
+                    </div>
+                    <Download size={14} className="text-gray-300 group-hover:text-green-600" />
+                  </a>
+                </div>
+              </div>
+              )}
             </div>
           );
         })}
