@@ -43,10 +43,10 @@ export default function AddPegawaiModal() {
                 <div className="space-y-1">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Role Sistem</label>
                     <select name="role" className="w-full p-3 bg-gray-50 border rounded-xl outline-none focus:border-[#800000] font-bold text-sm">
-                        <option value="Staf Puskod">Staf Puskod</option>
-                        <option value="Kataloger">Kataloger</option>
-                        <option value="Valtakod">Valtakod</option>
-                        <option value="Administrator">Administrator</option>
+                        <option value="STAF_PUSKOD">Staf Puskod</option>
+                        <option value="KATALOGER">Kataloger</option>
+                        <option value="VALTAKOD">Valtakod</option>
+                        <option value="ADMINISTRATOR">Administrator</option>
                     </select>
                 </div>
                 <InputField label="NIP / Nomor Identitas" name="nip" required />
