@@ -45,7 +45,7 @@ export default function LoginPage() {
           <div>
             <div className="flex justify-between items-center mb-1">
               <label className="text-sm font-semibold text-gray-700">Password</label>
-              <Link href="#" className="text-xs text-[#800000] hover:underline">Lupa password?</Link>
+              <Link href="/lupa-password" className="text-xs text-[#800000] hover:underline">Lupa password?</Link>
             </div>
             <input 
               name="password" 

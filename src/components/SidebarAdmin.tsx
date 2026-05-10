@@ -10,8 +10,7 @@ import {
   ArrowLeftOnRectangleIcon,
   HomeIcon
 } from '@heroicons/react/24/outline';
-import { logoutAction } from '@/app/auth-actions';
-import { LogOut } from 'lucide-react';
+import LogoutButton from '@/components/LogoutButton';
 
 export default function SidebarAdmin() {
   const pathname = usePathname();
@@ -54,15 +53,7 @@ export default function SidebarAdmin() {
       </nav>
 
       <div className="p-4 border-t border-gray-800">
-        <form action={logoutAction}>
-          <button 
-            type="submit" 
-            className="flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white transition w-full text-left"
-          >
-            <LogOut className="w-5 h-5" />
-            <span className="text-sm font-semibold">Keluar Panel</span>
-          </button>
-        </form>
+        <LogoutButton variant="sidebar" />
       </div>
     </aside>
   );
