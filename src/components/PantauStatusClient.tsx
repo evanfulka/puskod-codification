@@ -4,17 +4,19 @@ import { useState } from 'react';
 import { 
   Search, Clock, CheckCircle2, AlertCircle, 
   ChevronRight, ArrowUpRight, X, Loader2,
-  FileSpreadsheet, FileCheck, Award, Download
+  FileSpreadsheet, FileCheck, Award, Download, Info
 } from 'lucide-react';
 import TrackRecord from './TrackRecord';
 import { getPermohonanLogsAction } from '@/app/auth-actions';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export default function PantauStatusClient({ data }: { data: any[] }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedLogs, setSelectedLogs] = useState<any[] | null>(null);
   const [selectedStatus, setSelectedStatus] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
 
   const handleShowProgres = async (id: number, status: string) => {
     setIsLoading(true);
@@ -92,12 +94,28 @@ export default function PantauStatusClient({ data }: { data: any[] }) {
 
                 {/* Tombol Perbaiki (Muncul hanya saat Revisi) */}
                 {isRevisi && (
-                  <Link 
-                    href={`/permohonan-nsn/edit/${item.ID_PERMOHONAN}`}
-                    className="w-full flex items-center justify-center gap-2 py-3 bg-red-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-red-700 shadow-lg shadow-red-200 transition"
-                  >
-                    Perbaiki Dokumen <ArrowUpRight size={14} />
-                  </Link>
+                  <div className="mt-4 animate-in fade-in slide-in-from-top-2">
+                    {/* Kotak Catatan Perbaikan */}
+                    {item.CATATAN_PERBAIKAN && (
+                      <div className="mb-3 p-4 bg-red-50 border border-red-100 rounded-xl flex items-start gap-3">
+                        <Info className="text-red-500 shrink-0 mt-0.5" size={16} />
+                        <div>
+                          <p className="text-[10px] font-black text-red-800 uppercase tracking-widest mb-1">Catatan Puskod:</p>
+                          <p className="text-xs text-red-700 font-medium leading-relaxed">
+                            {item.CATATAN_PERBAIKAN}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Tombol Perbaiki */}
+                    <Link 
+                      href={`/permohonan-nsn/edit/${item.ID_PERMOHONAN}`}
+                      className="w-full flex items-center justify-center gap-2 py-3 bg-red-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-red-700 shadow-lg shadow-red-200 transition"
+                    >
+                      Perbaiki Dokumen <ArrowUpRight size={14} />
+                    </Link>
+                  </div>
                 )}
               </div>
 

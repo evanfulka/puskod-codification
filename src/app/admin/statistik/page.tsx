@@ -56,9 +56,6 @@ export default async function StatistikPage() {
             </h1>
             <p className="text-sm text-gray-500 font-bold uppercase tracking-widest mt-1">Laporan Analisis Efisiensi & Performa Puskod</p>
           </div>
-          <button className="flex items-center gap-2 px-6 py-3 bg-[#1A1A1A] text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-[#800000] transition-all shadow-xl active:scale-95">
-            <Download size={16} /> Export Laporan PDF
-          </button>
         </div>
 
         {/* TOP ROW: SLA & OVERVIEW */}

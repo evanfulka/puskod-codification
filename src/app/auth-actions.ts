@@ -228,11 +228,23 @@ export async function updateStatusAction(idPermohonan: number, statusBaru: strin
     }
     // --------------------------------
 
-    // Update Status di Header
-    await conn.execute(
-      `UPDATE "SYSTEM"."PERMOHONAN_HEADER" SET "STATUS_SAAT_INI" = :1 WHERE "ID_PERMOHONAN" = :2`,
-      [statusBaru, idPermohonan]
-    );
+    // --- LOGIKA UPDATE STATUS & CATATAN PERBAIKAN ---
+    let updateQuery = `UPDATE "SYSTEM"."PERMOHONAN_HEADER" SET "STATUS_SAAT_INI" = :1`;
+    let updateParams: any[] = [statusBaru];
+
+    if (statusBaru === 'Perbaikan Berkas') {
+      // Jika ditolak, masukkan parameter catatan ke dalam query
+      updateQuery += `, "CATATAN_PERBAIKAN" = :2 WHERE "ID_PERMOHONAN" = :3`;
+      updateParams.push(catatan, idPermohonan);
+    } else {
+      // Jika status lain, kosongkan catatan (set NULL) agar bersih
+      updateQuery += `, "CATATAN_PERBAIKAN" = NULL WHERE "ID_PERMOHONAN" = :2`;
+      updateParams.push(idPermohonan);
+    }
+
+    // Eksekusi Update Header
+    await conn.execute(updateQuery, updateParams);
+    // ------------------------------------------------
 
     // Catat di Log
     await conn.execute(
