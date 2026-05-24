@@ -107,14 +107,26 @@ export default function PenyelesaianProyekClient({ data }: any) {
 
   const sendWA = () => {
     const phone = data.NO_TELP_WA;
-    let text = `Halo ${data.NAMA_LENGKAP},\n\nBerikut kami informasikan bahwa proses kodifikasi untuk pengadaan ${data.PENGADAAN} telah selesai.`;
-    
-    if (data.FILE_SERTIFIKAT) {
-        text += `\n\nSertifikat Kodifikasi dapat diunduh di sini: ${window.location.origin}${data.FILE_SERTIFIKAT}`;
+    const origin = window.location.origin;
+    let text = '';
+
+    if (data.STATUS_SAAT_INI === 'Berita Acara dan Hasil Kodifikasi') {
+        text = `Halo ${data.NAMA_LENGKAP},\n\nPengerjaan kodifikasi untuk *${data.PENGADAAN}* oleh tim Kataloger telah selesai. Kami mengundang Bapak/Ibu mitra untuk melakukan verifikasi data materiil bersama kami.\n\nSebagai bahan persiapan, Bapak/Ibu dapat mengunduh draf dokumen berikut:\n`;
+        if (data.FILE_BA) text += `- Berita Acara: ${origin}${data.FILE_BA}\n`;
+        if (data.FILE_HASIL_KODIFIKASI) text += `- Hasil Kodifikasi: ${origin}${data.FILE_HASIL_KODIFIKASI}\n`;
+    } else if (data.STATUS_SAAT_INI === 'Selesai') {
+        text = `Halo ${data.NAMA_LENGKAP},\n\nKami informasikan bahwa keseluruhan proses kodifikasi materiil untuk *${data.PENGADAAN}* telah tuntas.\n\nBerikut adalah tautan untuk mengunduh dokumen output akhir Anda:\n`;
+        if (data.FILE_BA) text += `- Berita Acara: ${origin}${data.FILE_BA}\n`;
+        if (data.FILE_HASIL_KODIFIKASI) text += `- Hasil Kodifikasi: ${origin}${data.FILE_HASIL_KODIFIKASI}\n`;
+        if (data.FILE_SERTIFIKAT) text += `- Sertifikat NSN: ${origin}${data.FILE_SERTIFIKAT}\n`;
+        text += `\nTerima kasih atas kerja samanya.`;
+    } else {
+        alert('Pengiriman WhatsApp hanya tersedia pada tahap Berita Acara atau setelah status Selesai.');
+        return;
     }
     
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
-};
+  };
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-8 bg-white rounded-3xl border border-gray-100 relative">
@@ -136,20 +148,23 @@ export default function PenyelesaianProyekClient({ data }: any) {
             </button>
         </div>
 
-        {(data.STATUS_SAAT_INI === 'Sertifikat Kodifikasi' || data.FILE_SERTIFIKAT) && (
+        {(data.STATUS_SAAT_INI === 'Sertifikat Kodifikasi' || data.STATUS_SAAT_INI === 'Selesai' || data.FILE_SERTIFIKAT) && (
             <FileRow label="Sertifikat Kodifikasi" path={data.FILE_SERTIFIKAT} onUpload={(e) => handleUpload(e, 'SERTIFIKAT')} />
         )}
       </div>
 
       {/* SECTION 2: KOORDINASI & STATUS */}
-      <div className="space-y-6 bg-gray-50 p-6 rounded-3xl">
+      <div className="space-y-6 bg-gray-50 p-6 rounded-3xl flex flex-col">
         <h3 className="text-lg font-black uppercase tracking-tight border-b pb-2 text-gray-800">Aksi Lanjutan</h3>
         
-        <button onClick={sendWA} className="w-full bg-green-600 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-green-700 transition shadow-lg group">
-            <MessageCircle size={24} className="group-hover:scale-110 transition" /> Kirim Dokumen via WhatsApp
-        </button>
+        {/* Tampilkan Tombol WA HANYA pada 2 status spesifik ini */}
+        {(data.STATUS_SAAT_INI === 'Berita Acara dan Hasil Kodifikasi' || data.STATUS_SAAT_INI === 'Selesai') && (
+            <button onClick={sendWA} className="w-full bg-green-600 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-green-700 transition shadow-lg group">
+                <MessageCircle size={24} className="group-hover:scale-110 transition" /> Beritahu Mitra via WhatsApp
+            </button>
+        )}
 
-        <div className="pt-6 border-t border-gray-200">
+        <div className="pt-6 border-t border-gray-200 mt-auto">
             <p className="text-[10px] font-black text-gray-400 uppercase mb-4 tracking-widest">Update Status Pengerjaan:</p>
             
             {/* TAHAP 1: BERITA ACARA -> PINDAH KE VERIFIKASI MITRA */}
@@ -225,12 +240,6 @@ export default function PenyelesaianProyekClient({ data }: any) {
                     <p className="text-[10px] text-green-700 font-bold mt-1 uppercase tracking-tight">
                         Permohonan ini telah selesai dan diarsipkan.
                     </p>
-                    <button 
-                        onClick={sendWA}
-                        className="mt-4 text-xs font-bold text-green-700 hover:underline flex items-center justify-center gap-1 mx-auto"
-                    >
-                        <MessageCircle size={14} /> Beritahu Mitra via WhatsApp
-                    </button>
                 </div>
             )}
         </div>

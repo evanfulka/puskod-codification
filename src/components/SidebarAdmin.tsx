@@ -17,7 +17,7 @@ export default function SidebarAdmin() {
 
   const menuItems = [
     { name: 'Dashboard', href: '/admin', icon: HomeIcon },
-    { name: 'Permohonan NSN', href: '/admin/permohonan', icon: InboxIcon },
+    { name: 'Verifikasi Permohonan NSN', href: '/admin/permohonan', icon: InboxIcon },
     { name: 'Tugas Kodifikasi', href: '/admin/pengerjaan', icon: InboxIcon },
     { name: 'Validasi NSN', href: '/admin/validasi', icon: InboxIcon },
     { name: 'Monitoring Track Record', href: '/admin/monitoring', icon: DocumentMagnifyingGlassIcon },
