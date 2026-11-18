@@ -14,6 +14,18 @@ import fs from 'fs';
 const SECRET_KEY = new TextEncoder().encode('rahasia_puskod_kemhan_2026');
 
 export async function registerAction(prevState: any, formData: FormData) {
+  // Ambil input captcha
+  const captchaInput = formData.get('captchaInput') as string;
+  // Baca cookie captcha_token
+  const cookieStore = await cookies();
+  const expectedCaptcha = cookieStore.get('captcha_token')?.value;
+  // Validasi Captcha
+  if (!expectedCaptcha || captchaInput.toLowerCase() !== expectedCaptcha.toLowerCase()) {
+    return { success: false, message: "Kode Captcha tidak valid atau kedaluwarsa." };
+  }
+  // Jika Captcha benar, hapus cookie agar tidak bisa di-reuse oleh bot
+  cookieStore.delete('captcha_token');
+
   const namaLengkap = formData.get('namaLengkap') as string;
   const email = formData.get('email') as string;
   const password = formData.get('password') as string;
@@ -50,6 +62,18 @@ export async function registerAction(prevState: any, formData: FormData) {
 export async function loginAction(prevState: any, formData: FormData) {
   const email = formData.get('email') as string;
   const password = formData.get('password') as string;
+  const captchaInput = formData.get('captchaInput') as string;
+
+  const cookieStore = await cookies();
+  
+  // Validasi Captcha terlebih dahulu
+  const expectedCaptcha = cookieStore.get('captcha_token')?.value;
+  if (!expectedCaptcha || captchaInput.toLowerCase() !== expectedCaptcha.toLowerCase()) {
+    return { success: false, message: "Kode Captcha tidak valid atau kedaluwarsa." };
+  }
+  
+  // Hapus cookie Captcha agar tidak bisa di-reuse
+  cookieStore.delete('captcha_token');
 
   const conn = await getConnection();
   let targetPath = '';
@@ -73,7 +97,6 @@ export async function loginAction(prevState: any, formData: FormData) {
         .setExpirationTime('2h')
         .sign(SECRET_KEY);
 
-      const cookieStore = await cookies();
       cookieStore.set('session_token', token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
@@ -102,6 +125,24 @@ export async function logoutAction() {
 
 export async function submitPermohonanAction(prevState: any, formData: FormData) {
   const cookieStore = await cookies();
+  // ==========================================
+  // 1. VALIDASI CAPTCHA (Pencegahan Bot Awal)
+  // ==========================================
+  const captchaInput = formData.get('captchaInput') as string;
+  const expectedCaptcha = cookieStore.get('captcha_token')?.value;
+
+  if (!expectedCaptcha || !captchaInput || captchaInput.toLowerCase() !== expectedCaptcha.toLowerCase()) {
+    return { success: false, message: "Kode Captcha tidak valid atau sudah kedaluwarsa. Silakan muat ulang gambar." };
+  }
+
+  // Hapus cookie Captcha agar tidak bisa di-reuse untuk request berikutnya
+  cookieStore.delete('captcha_token');
+  // ==========================================
+
+
+  // ==========================================
+  // 2. VALIDASI SESI & TRANSAKSI DATABASE
+  // ==========================================
   const token = cookieStore.get('session_token')?.value;
   if (!token) return { success: false, message: "Sesi habis, silakan login ulang." };
 

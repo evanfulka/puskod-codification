@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, Suspense } from 'react';
+import { useActionState, Suspense, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
@@ -9,6 +9,14 @@ import { registerAction } from '../auth-actions';
 function RegisterForm() {
   const [state, formAction, isPending] = useActionState(registerAction, null);
   const searchParams = useSearchParams();
+
+  // State untuk memicu refresh gambar captcha
+  const [captchaUrl, setCaptchaUrl] = useState('/api/captcha');
+
+  const refreshCaptcha = () => {
+    // Tambahkan timestamp agar browser tidak memakai cache
+    setCaptchaUrl(`/api/captcha?t=${Date.now()}`);
+  };
 
   // Ambil data dari URL hasil pengecekan NCAGE
   const ncageFromUrl = searchParams.get('ncage') || '';
@@ -134,6 +142,29 @@ function RegisterForm() {
               className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#800000] outline-none transition" 
             />
           </div>
+        </div>
+
+        <div className="pt-2">
+          <label className="block text-sm font-semibold mb-1 text-gray-700">Keamanan (Captcha)</label>
+          <div className="flex gap-4 items-center mb-3">
+            <div className="bg-white border border-gray-300 rounded-lg overflow-hidden">
+              <img src={captchaUrl} alt="Kode Captcha" className="h-12 w-32 object-cover" />
+            </div>
+            <button
+              type="button"
+              onClick={refreshCaptcha}
+              className="text-sm font-bold text-[#800000] hover:underline"
+            >
+              Muat Ulang
+            </button>
+          </div>
+          <input 
+            name="captchaInput"
+            type="text" 
+            required
+            placeholder="Masukkan 5 karakter di atas" 
+            className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#800000] outline-none transition" 
+          />
         </div>
 
         <button 

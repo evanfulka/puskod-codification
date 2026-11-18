@@ -12,6 +12,10 @@ interface NcageData {
 
 export default function CekNcageClient() {
   const [searchQuery, setSearchQuery] = useState('');
+  // State untuk Captcha
+  const [captchaInput, setCaptchaInput] = useState('');
+  const [captchaUrl, setCaptchaUrl] = useState('/api/captcha');
+  
   const [loading, setLoading] = useState(false);
   
   const [modalConfig, setModalConfig] = useState<{
@@ -31,17 +35,22 @@ export default function CekNcageClient() {
 
   const router = useRouter();
 
-  // Fungsi untuk mengecek NCAGE (Bisa berdasarkan Kode atau Nama Perusahaan)
+  const refreshCaptcha = () => {
+    setCaptchaUrl(`/api/captcha?t=${Date.now()}`);
+    setCaptchaInput(''); // Kosongkan input saat di-refresh
+  };
+
   const handleCheckNcage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!searchQuery) return;
+    if (!searchQuery || !captchaInput) return;
 
     setLoading(true);
     try {
       const res = await fetch('/api/check-ncage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: searchQuery }), 
+        // Sisipkan captchaInput ke dalam payload JSON
+        body: JSON.stringify({ query: searchQuery, captchaInput }), 
       });
 
       const data = await res.json();
@@ -54,6 +63,11 @@ export default function CekNcageClient() {
         message: data.message,
         target: data.target
       });
+
+      // Jika error (termasuk error captcha), refresh gambar agar tidak bisa di-reuse
+      if (data.type === 'error') {
+        refreshCaptcha();
+      }
 
     } catch (err) {
       setModalConfig({
@@ -129,7 +143,33 @@ export default function CekNcageClient() {
                 />
               </div>
               
-              <div className="flex flex-col gap-3">
+              {/* --- BLOK CAPTCHA DITAMBAHKAN DI SINI --- */}
+              <div className="text-left">
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
+                  Keamanan (Captcha)
+                </label>
+                <div className="flex gap-4 items-center mb-3">
+                  <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                    <img src={captchaUrl} alt="Kode Captcha" className="h-14 w-36 object-cover" />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={refreshCaptcha}
+                    className="text-sm font-bold text-[#800000] hover:underline"
+                  >
+                    Muat Ulang
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={captchaInput}
+                  onChange={(e) => setCaptchaInput(e.target.value)}
+                  placeholder="Ketikan 5 karakter di atas"
+                  className="w-full px-6 py-4 bg-[#FDFBF7] border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#800000] outline-none text-xl font-bold text-center uppercase"
+                  required
+                />
+              </div>
+              <div className="flex flex-col gap-3 pt-2">
                 <button
                   type="submit"
                   disabled={loading}

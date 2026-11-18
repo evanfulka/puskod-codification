@@ -2,11 +2,33 @@ import { NextResponse } from 'next/server';
 import { getConnection } from '@/lib/db';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
+import { cookies } from 'next/headers';
 
 export async function POST(request: Request) {
   let conn;
   try {
-    const { email } = await request.json();
+    const body = await request.json();
+    const { email, captchaInput } = body; // Ambil captchaInput dari payload
+
+    // ==========================================
+    // 1. VALIDASI CAPTCHA
+    // ==========================================
+    const cookieStore = await cookies();
+    const expectedCaptcha = cookieStore.get('captcha_token')?.value;
+
+    if (!expectedCaptcha || !captchaInput || captchaInput.toLowerCase() !== expectedCaptcha.toLowerCase()) {
+      return NextResponse.json(
+        { message: "Kode Captcha tidak valid atau sudah kedaluwarsa." },
+        { status: 400 } // Kembalikan status error 400 (Bad Request)
+      );
+    }
+
+    // Hapus cookie Captcha agar tidak bisa di-reuse
+    cookieStore.delete('captcha_token');
+    // ==========================================
+
+
+    // 2. LOGIKA DATABASE ORACLE & PENGIRIMAN EMAIL
     conn = await getConnection();
 
     // Cek email di database

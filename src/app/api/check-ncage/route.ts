@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { getConnection } from '@/lib/db';
 import oracledb from 'oracledb';
 
@@ -6,7 +7,33 @@ export async function POST(request: Request) {
   let conn; // Deklarasikan di luar blok try agar bisa diakses oleh blok finally
   
   try {
-    const { query } = await request.json();
+    // Ambil query pencarian dan input captcha dari client
+    const body = await request.json();
+    const { query, captchaInput } = body; 
+
+    // ==========================================
+    // 1. VALIDASI CAPTCHA
+    // ==========================================
+    const cookieStore = await cookies();
+    const expectedCaptcha = cookieStore.get('captcha_token')?.value;
+
+    if (!expectedCaptcha || !captchaInput || captchaInput.toLowerCase() !== expectedCaptcha.toLowerCase()) {
+      return NextResponse.json({ 
+        exists: false, 
+        type: 'error',
+        title: 'Validasi Keamanan Gagal',
+        message: "Kode Captcha tidak valid atau sudah kedaluwarsa. Silakan muat ulang gambar." 
+      });
+    }
+
+    // Hapus cookie Captcha agar tidak bisa di-reuse oleh bot
+    cookieStore.delete('captcha_token');
+    // ==========================================
+
+
+    // ==========================================
+    // 2. LOGIKA DATABASE ORACLE
+    // ==========================================
     conn = await getConnection();
 
     // Menggunakan Named Bind Variable (:searchTerm)

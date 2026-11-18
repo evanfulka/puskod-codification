@@ -10,9 +10,19 @@ export default function LupaPasswordPage() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState('');
 
+  // State untuk Captcha
+  const [captchaInput, setCaptchaInput] = useState('');
+  const [captchaUrl, setCaptchaUrl] = useState('/api/captcha');
+
+  // Fungsi untuk me-refresh gambar Captcha
+  const refreshCaptcha = () => {
+    setCaptchaUrl(`/api/captcha?t=${Date.now()}`);
+    setCaptchaInput('');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) return;
+    if (!email || !captchaInput) return; // Pastikan email dan captcha diisi
 
     setStatus('loading');
     
@@ -20,7 +30,8 @@ export default function LupaPasswordPage() {
       const res = await fetch('/api/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        // Kirim email dan input captcha ke server
+        body: JSON.stringify({ email, captchaInput }), 
       });
       
       const data = await res.json();
@@ -31,6 +42,8 @@ export default function LupaPasswordPage() {
       } else {
         setStatus('error');
         setMessage(data.message || 'Terjadi kesalahan sistem.');
+        // Refresh captcha jika terjadi error (terutama karena captcha salah)
+        refreshCaptcha();
       }
     } catch (err) {
       setStatus('error');
@@ -91,6 +104,32 @@ export default function LupaPasswordPage() {
                 disabled={status === 'loading' || status === 'success'}
               />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-bold text-gray-700 mb-2">Keamanan (Captcha)</label>
+            <div className="flex gap-4 items-center mb-3">
+              <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                <img src={captchaUrl} alt="Kode Captcha" className="h-12 w-32 object-cover" />
+              </div>
+              <button
+                type="button"
+                onClick={refreshCaptcha}
+                disabled={status === 'loading' || status === 'success'}
+                className="text-sm font-bold text-[#800000] hover:underline disabled:opacity-50"
+              >
+                Muat Ulang
+              </button>
+            </div>
+            <input
+              type="text"
+              value={captchaInput}
+              onChange={(e) => setCaptchaInput(e.target.value)}
+              placeholder="Masukkan 5 karakter di atas"
+              className="w-full px-4 py-3 bg-[#FDFBF7] border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#800000] outline-none transition"
+              required
+              disabled={status === 'loading' || status === 'success'}
+            />
           </div>
 
           <button 

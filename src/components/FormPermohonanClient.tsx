@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useState } from 'react';
+import { useActionState, useState, useEffect } from 'react';
 import { FileDown, Upload, User, FileEdit, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { submitPermohonanAction } from '@/app/auth-actions';
 import Link from 'next/link';
@@ -8,6 +8,20 @@ import Link from 'next/link';
 export default function FormPermohonanClient({ prefillData }: any) {
   const [state, formAction, isPending] = useActionState(submitPermohonanAction, null);
   const [showModal, setShowModal] = useState(false);
+
+  // State untuk Captcha
+  const [captchaUrl, setCaptchaUrl] = useState('/api/captcha');
+
+  const refreshCaptcha = () => {
+    setCaptchaUrl(`/api/captcha?t=${Date.now()}`);
+  };
+
+  // Effect untuk refresh captcha secara otomatis jika pengiriman gagal
+  useEffect(() => {
+    if (state?.success === false) {
+      refreshCaptcha();
+    }
+  }, [state]);
 
   // Jika sukses, kita tampilkan modal
   if (state?.success && !showModal) {
@@ -74,6 +88,30 @@ export default function FormPermohonanClient({ prefillData }: any) {
               </a>
             </div>
             <UploadField label="IPC / IPB (PDF)" name="fileIpc" optional />
+          </div>
+
+          <div className="pt-2">
+            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Validasi Keamanan (Captcha)</label>
+            <div className="flex gap-4 items-center mb-2">
+              <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                <img src={captchaUrl} alt="Kode Captcha" className="h-10 w-28 object-cover" />
+              </div>
+              <button
+                type="button"
+                onClick={refreshCaptcha}
+                disabled={isPending}
+                className="text-xs font-bold text-[#800000] hover:underline disabled:opacity-50"
+              >
+                Muat Ulang
+              </button>
+            </div>
+            <input 
+              name="captchaInput"
+              type="text" 
+              required
+              placeholder="Masukkan 5 karakter di atas" 
+              className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-[#800000] text-sm font-medium" 
+            />
           </div>
 
           <button 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { loginAction } from '../auth-actions';
@@ -8,6 +8,14 @@ import { loginAction } from '../auth-actions';
 export default function LoginPage() {
   // state menampung return dari loginAction { success, message }
   const [state, formAction, isPending] = useActionState(loginAction, null);
+  
+  // Tambahkan state untuk URL Captcha
+  const [captchaUrl, setCaptchaUrl] = useState('/api/captcha');
+
+  // Fungsi untuk refresh gambar Captcha
+  const refreshCaptcha = () => {
+    setCaptchaUrl(`/api/captcha?t=${Date.now()}`);
+  };
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] flex flex-col items-center justify-center p-6">
@@ -52,6 +60,29 @@ export default function LoginPage() {
               type="password" 
               required
               placeholder="••••••••" 
+              className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#800000] focus:border-transparent outline-none transition" 
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold mb-1 text-gray-700">Keamanan (Captcha)</label>
+            <div className="flex gap-4 items-center mb-3">
+              <div className="bg-white border border-gray-300 rounded-lg overflow-hidden">
+                <img src={captchaUrl} alt="Kode Captcha" className="h-12 w-32 object-cover" />
+              </div>
+              <button
+                type="button"
+                onClick={refreshCaptcha}
+                className="text-sm font-bold text-[#800000] hover:underline"
+              >
+                Muat Ulang
+              </button>
+            </div>
+            <input 
+              name="captchaInput"
+              type="text" 
+              required
+              placeholder="Masukkan 5 karakter di atas" 
               className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#800000] focus:border-transparent outline-none transition" 
             />
           </div>
